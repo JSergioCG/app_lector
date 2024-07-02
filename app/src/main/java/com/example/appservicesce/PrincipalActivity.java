@@ -25,6 +25,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.text.Editable;
@@ -53,6 +54,7 @@ import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.graphics.drawable.RoundedBitmapDrawable;
@@ -84,14 +86,23 @@ import com.google.android.material.shape.ShapeAppearanceModel;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
 
 public class PrincipalActivity extends AppCompatActivity {
 
@@ -103,8 +114,8 @@ public class PrincipalActivity extends AppCompatActivity {
     private TextView barcodeText;
     private String barcodeData;
 
-    //private String server_url = "http://192.168.0.101/mvcapicontroller/Api/Product?id=1&code_bar=";
-    private String server_url = "http://192.168.1.219/mvcapicontroller/Api/Product?id=1&code_bar=";
+    //private String server_url = "http://192.168.0.101/mvcapicontroller/Api/Product";
+    private String server_url = "http://192.168.1.219/mvcapicontroller/Api/Product";
 
     private int i = 0;
     private String server_url_product = "";
@@ -113,7 +124,7 @@ public class PrincipalActivity extends AppCompatActivity {
     private static final String TAG = MainActivityTabs.class.getName();
 
     public boolean sw = true;
-    public String sucursalEnable = "";
+    public Integer sucursalEnable = -1;
 
 
     final String[] color = { "Amarillo", "Azul", "Beige", "Marron", "Estampado", "Gris", "Metalico", "Multicolor", "Naranja", "Negro", "Rojo", "Rosa", "Verde", "Violeta", "Plateado", "Dorado", "Blanco", "Animale Print", "Transparente", "Bronze" };
@@ -124,9 +135,19 @@ public class PrincipalActivity extends AppCompatActivity {
     public Integer textInter = 15;
     public Integer textBigger = 20;
 
+    public Integer idAlmacen = -1;
+    public Integer idTalla = -1;
+    public Integer idColor = -1;
+
+    public static Integer bitSuc = 8311799;
+    public static Integer bitTam = 8497109;
+    public static Integer bitCol = 67111108;
+
     EditText textCodeBar;
     ImageView imageView;
     Button buttonCamera;
+    Boolean switchCamera = true;
+    LinearLayout textViewDetails;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -147,18 +168,46 @@ public class PrincipalActivity extends AppCompatActivity {
 
             toneGen1 = new ToneGenerator(AudioManager.STREAM_MUSIC, 100);
             surfaceView = findViewById(R.id.surface_view);
-            initialiseDetectorsAndSources();
+            surfaceView.setVisibility(View.GONE);
+            //initialiseDetectorsAndSources();
+            textViewDetails = findViewById(R.id.textViewDetails);
 
             buttonCamera = (Button)findViewById(R.id.buttonCamera);
             buttonCamera.setOnClickListener(new View.OnClickListener(){
                 @Override
                 public void onClick(View view) {
                     // click handling code
-                    initialiseDetectorsAndSources();
+                    if(switchCamera){
+                        switchCamera = false;
+                        imageView.setVisibility(View.GONE);
+                        textViewDetails.setVisibility(View.GONE);
+                        surfaceView.setVisibility(View.VISIBLE);
+                        initialiseDetectorsAndSources();
+                    }else{
+                        switchCamera = true;
+                        cameraSource.stop();
+                        //cameraSource.release();
+                        surfaceView.setVisibility(View.GONE);
+                        imageView.setVisibility(View.VISIBLE);
+                        textViewDetails.setVisibility(View.VISIBLE);
+                    }
+
                 }
             });
 
         }
+
+        createFile(this);
+        String data = readFile(this);
+        //Log.i("DATA", data);
+        if(data.length() == 0) {
+            Shoes s = new Shoes(0, "Central", -1, "", -1, "", "");
+            data = writeFile(this,s);
+            //Log.i("DATA", data);
+        }
+        //Log.i("DATA",""+ Integer.parseInt(data.trim()));
+        this.idAlmacen = Integer.parseInt(data.trim());
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -195,7 +244,10 @@ public class PrincipalActivity extends AppCompatActivity {
                     requestQueue = new RequestQueue(cache,network);
                     requestQueue.start();
 
-                    server_url_product = server_url + codebar;
+                    long uniqueNum = UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
+
+                    server_url_product = server_url + "?id=" + uniqueNum + "&code_bar=" + codebar + "&idAlm=" + idAlmacen + "&idTam="+ idTalla + "&idCol=" + idColor;
+                    Log.d(TAG, server_url_product);
                     StringRequest stringRequest = new StringRequest(Request.Method.GET, server_url_product, new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
@@ -219,7 +271,7 @@ public class PrincipalActivity extends AppCompatActivity {
                                 etTextInput.setTextColor(Color.WHITE);
                                 etTextInput.setHintTextColor(Color.WHITE);
                                 etTextInput.setTextSize(12.5f);*/
-                                String url_image = obj.getString("Image_Src");
+                                String url_image = obj.getString("image_src");
                                 String href = "";
                                 String image = "REFERENCIAL";
                                 if(!TextUtils.isEmpty(url_image) && !url_image.equals("null")){
@@ -234,6 +286,13 @@ public class PrincipalActivity extends AppCompatActivity {
                                 if(!TextUtils.isEmpty(caaPrecio) && !caaPrecio.equals("null"))
                                     precioOferta = Float.parseFloat(caaPrecio);
 
+                                String basedatos = obj.getString("basedatos");
+                                String database = "";
+                                if(basedatos.equals("LOCAL"))
+                                    database = "<font size='50' color=#0173B7><b>"+String.format("%.0f", precioOferta*tipoCambio)+"</b> Bs.</font>";
+                                else if(basedatos.equals("PRODUCCION"))
+                                    database = "<font size='50' color=#FF0000><b>"+String.format("%.0f", precioOferta*tipoCambio)+"</b> Bs.</font>";
+
                                 String text_1 =
                                         "<table><tbody>" +
                                         "<tr><td><b><font color=#444444>ALMACEN:</font></b> <font color=#0173B7>"+obj.getString("almNombre").toUpperCase()+"</font></td></tr><br>" +
@@ -241,29 +300,12 @@ public class PrincipalActivity extends AppCompatActivity {
                                         "<tr><td><b><font color=#444444>CATEGORIA:</font></b> "+obj.getString("catNombre").toUpperCase()+"</td></tr><br>" +
                                         "<tr><td><b><font color=#444444>MATERIAL F.:</font></b> "+obj.getString("mafNombre").toUpperCase()+"</td></tr><br>" +
                                         "<tr><td><b><font color=#444444>COLOR F.:</font></b> "+obj.getString("cofNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>PRECIO:</font></b> <font size='50' color=#0173B7><b>"+String.format("%.2f", (precioOferta*tipoCambio))+"</b> Bs.</font></td></tr><br>" +
+                                        "<tr><td><b><font color=#444444>PRECIO:</font></b> "+database+"</td></tr><br>" +
                                         "<tr><td><b><font color=#444444>IMAGEN:</font></b> <a target='_blank' "+href+" >"+image+"</a></td></tr><br>"+
                                         //"<tr><td><strong>Codigo:</strong> <a target='_blank' "+href+" >"+obj.getString("lotCodigoBarras")+"</a></td></tr><br>"+
                                         //"<tr><td><strong>Shopify:</strong> <a target='_blank' href='"+obj.getString("image_src")+"'>ver mas...</a></td></tr><br>"+
                                         "</tbody></table>";
-                                        /*"<h1><strong>Producto</strong></h1>"+
-                                        //"<div><strong>CodigoBarra:</strong> "+obj.getString("lotCodigoBarras")+"</div>"+
-                                        "<div><strong>Almacen:</strong> "+obj.getString("almNombre")+"</div>"+
-                                        "<div><strong>Categoria:</strong> "+obj.getString("catNombre")+"</div>"+
-                                        "<div><strong>SubCategoria:</strong> "+obj.getString("subNombre")+"</div>"+
-                                        "<div><strong>Proveedor:</strong> "+obj.getString("pveNombre")+"</div>"+
-                                        "<div><strong>Material F.:</strong> "+obj.getString("mafNombre")+"</div>"+
-                                        "<div><strong>Material:</strong> "+obj.getString("matNombre")+"</div>"+
-                                        "<div><strong>Color F.:</strong> "+obj.getString("cofNombre")+"</div>"+
-                                        "<div><strong>Color:</strong> "+obj.getString("colNombre")+"</div>"+
 
-                                        "<div><strong>Tamaño:</strong> "+obj.getString("tamNombre")+"</div>"+
-                                        //"<div><strong>Caña:</strong> "+obj.getString("subCanha")+"</div>"+
-                                        "<div><strong>Precio:</strong> "+obj.getString("drePrecio")+"</div>"+
-                                        "<div><strong>Precio Sistema:</strong> "+obj.getString("drePrecioSistema")+"</div>"+
-                                        "<div><strong>Precio Manual:</strong> "+obj.getString("drePrecioManual")+"</div>"+
-                                        "<div><strong>Stock:</strong> "+obj.getString("Stock")+"</div>"+
-                                        "";*/
                                 //txt_home_1.setText(Html.fromHtml(text_1)); view_pager
                                 LinearLayout linearLayout = (LinearLayout)findViewById(R.id.linear_Layout_Details); //inflater.inflate(R.layout.fragment_main, container, false);
                                 TextView textView1 = ((TextView) linearLayout. findViewById(R.id.textViewDetails1));
@@ -271,6 +313,8 @@ public class PrincipalActivity extends AppCompatActivity {
                                 textView1.setTextSize(textInter);
                                 textView1.setText(Html.fromHtml(text_1));
                                 textView1.setTag(url_image);
+
+
 
                                 String text_2 = "<table><tbody>" +
                                         "<tr><td><b><font color=#444444>MODELO:</font></b> "+obj.getString("modNombre").toUpperCase()+"</td></tr><br>" +
@@ -389,67 +433,29 @@ public class PrincipalActivity extends AppCompatActivity {
             }
         });*/
 
-        if(isLandscape(this))
-            textCodeBar.setText("295774i24r613");
+        //if(isLandscape(this))
+            //textCodeBar.setText("294841i24r611");
+        textCodeBar.setText("294837i24r611");
 
     }
 
-    /*@Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
+    public void reloadColor(Shoes shoes, EditText textCode){
+        this.idAlmacen = shoes.getIdAlmacen();
+        this.idTalla = shoes.getIdTalla();
+        this.idColor = shoes.getIdColor();
 
-        //LinearLayout lo = (LinearLayout) findViewById(R.id.linear_Layout_One);
-        LinearLayout lp = (LinearLayout) findViewById(R.id.linear_Layout_Principal);
-        LinearLayout ld = (LinearLayout) findViewById(R.id.linear_Layout_Details);
-        LinearLayout la = (LinearLayout) findViewById(R.id.linear_Layout_Available);
-            // Checks the orientation of the screen
-        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            //change your desigen by java code
-            Log.i("ORIENTATION_LANDSCAPE", "LANDSCAPE" );
-            this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        LinearLayout ls = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Sucursal);
+        Button buttonAlm = (Button)ls.findViewById(bitSuc + shoes.getIdAlmacen()); //ls.findViewWithTag("Sucursal_"+shoes.getIdAlmacen());
+        buttonAlm.setBackground(button_Active());
+        LinearLayout lt = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Talla);
+        Button buttonTalla = (Button)lt.findViewById(bitTam + shoes.getIdTalla()); //lt.findViewWithTag("Talla_"+shoes.getIdTalla());
+        buttonTalla.setBackground(button_Active());
+        textCode.setText(shoes.getLotCodigoBarras());
 
-            Toast.makeText(PrincipalActivity.this, "ORIENTATION_LANDSCAPE" ,Toast.LENGTH_SHORT).show();
-
-            lp.setOrientation(LinearLayout.HORIZONTAL);
-            LinearLayout.LayoutParams paramsd = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT, 0.2f);
-            paramsd.gravity = Gravity.LEFT;
-            paramsd.weight = 0.2f;
-            ld.setLayoutParams(paramsd);
-            ld.requestLayout();
-            LinearLayout.LayoutParams paramsa = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT, 0.8f);
-            paramsa.gravity = Gravity.RIGHT;
-            paramsa.weight = 0.8f;
-            la.setLayoutParams(paramsa);
-            la.requestLayout();
-            lp.requestLayout();
-            //lo.addView(la);
-            //lo.addView(lp);
-        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
-            //change your desigen by java code
-            Log.i("ORIENTATION_PORTRAIT", "PORTRAIT" );
-            this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-            Toast.makeText(PrincipalActivity.this, "ORIENTATION_PORTRAIT" ,Toast.LENGTH_SHORT).show();
-
-            lp.setOrientation(LinearLayout.VERTICAL);
-            lp.setWeightSum(2f);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
-            params.gravity = Gravity.CENTER;
-            params.weight=1f;
-            ld.setLayoutParams(params);
-            la.setLayoutParams(params);
-
-            lp.requestLayout();
-            ld.requestLayout();
-            la.requestLayout();
-            //lo.addView(lp);
-            //lo.addView(ld);
-            //lo.addView(la);
-        }
-    }*/
-
-    public void reloadColor(String codebar, EditText textCode){
-        textCode.setText(codebar);
+        String data = readFile(this);
+        this.idAlmacen = Integer.parseInt(data.trim());
+        this.idTalla = -1;
+        this.idColor = -1;
     }
 
     public GradientDrawable button_Normal(){
@@ -521,8 +527,8 @@ public class PrincipalActivity extends AppCompatActivity {
 
                 //Button buttonS = new MaterialButton(this, null, R.attr.myButtonStyle);
                 Button buttonS = new Button(this);
-                buttonS.setId(shoes.getIdAlmacen());
-                buttonS.setTag("Sucursal_"+shoes.getIdAlmacen());
+                buttonS.setId(bitSuc + shoes.getIdAlmacen());
+                buttonS.setTag(shoes);
                 buttonS.setText(shoes.getAlmacen());
                 //buttonS.setWidth(80);
                 //buttonS.setHeight(20);
@@ -565,9 +571,11 @@ public class PrincipalActivity extends AppCompatActivity {
                     public void onClick(View v) {
                         //Toast.makeText(MainActivityTabs.this,v.toString() ,Toast.LENGTH_SHORT).show();
                         //Log.i("Sucursal", "" + v.getId() +"-"+ v.getTag());
-                        sucursalEnable = v.getTag().toString();
-                        //v.setBackgroundDrawable(getResources().getDrawable(R.drawable.whatever));
-                        enabledButtons(listShoes,sucursalEnable,"","");
+                        //sucursalEnable = v.getTag().toString();
+                        Shoes shoes = (Shoes)v.getTag();
+                        idAlmacen = shoes.getIdAlmacen();
+                                //v.setBackgroundDrawable(getResources().getDrawable(R.drawable.whatever));
+                        enabledButtons(listShoes,idAlmacen,-1,-1);
                     }
                 });
             }
@@ -577,12 +585,12 @@ public class PrincipalActivity extends AppCompatActivity {
                 Log.i("ButtonTalla", "" + shoes.getIdTalla());
 
                 Button buttonT = new Button(this);
-                //buttonT.setId(shoes.getIdAlmacen());
-                buttonT.setTag("Talla_"+shoes.getIdTalla());
+                buttonT.setId(bitTam + shoes.getIdTalla());
+                buttonT.setTag(shoes);
                 buttonT.setText(shoes.getTalla());
                 //buttonT.setWidth(30);
                 //buttonT.setHeight(20);
-                buttonT.setTextSize(textBigger);
+                buttonT.setTextSize(textNormal);
                 buttonT.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
                 buttonT.setPadding(10,10,10,10);
 
@@ -609,7 +617,9 @@ public class PrincipalActivity extends AppCompatActivity {
                     public void onClick(View v) {
                         //Toast.makeText(MainActivityTabs.this,v.toString() ,Toast.LENGTH_SHORT).show();
                         //Log.i("Talla", "" + v.getId() +"-"+ v.getTag());
-                        enabledButtons(listShoes,sucursalEnable,v.getTag().toString(),"");
+                        Shoes shoes = (Shoes)v.getTag();
+                        idTalla = shoes.getIdTalla();
+                        enabledButtons(listShoes,idAlmacen,idTalla,-1);
                     }
                 });
             }
@@ -619,8 +629,8 @@ public class PrincipalActivity extends AppCompatActivity {
                 Log.i("ButtonColor", "" + shoes.getIdColor());
 
                 Button buttonC = new Button(this);
-                //buttonT.setId(shoes.getIdAlmacen());
-                buttonC.setTag("Color_"+shoes.getIdColor());
+                buttonC.setId(bitCol + shoes.getIdColor());
+                buttonC.setTag(shoes);
                 buttonC.setText(shoes.getColor());
                 buttonC.setHint(shoes.getLotCodigoBarras());
 
@@ -628,7 +638,7 @@ public class PrincipalActivity extends AppCompatActivity {
                 //buttonC.setHeight(50);
                 buttonC.setTextSize(textNormal);
                 buttonC.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
-                //buttonC.setPadding(10,10,10,10);
+                buttonC.setPadding(10,10,10,10);
 
                 //Log.i("Color",shoes.getColor());
                 int index = Arrays.asList(color).indexOf(shoes.getColor());
@@ -698,11 +708,22 @@ public class PrincipalActivity extends AppCompatActivity {
                 buttonC.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        String tag = v.getTag().toString();
-                        Button button = (Button) lc.findViewWithTag(tag);
+                        Shoes shoes = (Shoes)v.getTag();
+                        idColor = shoes.getIdColor();
+                        Log.i("TAG", "" + shoes);
+                        Button button = (Button) lc.findViewById(bitCol + shoes.getIdColor()); //lc.findViewWithTag(shoes);
+                        Log.i("BUTTON", "" + button);
                         String codebar = button.getHint().toString();
                         //Toast.makeText(PrincipalActivity.this, codebar , Toast.LENGTH_SHORT).show();
-                        reloadColor(codebar, textCode);
+
+                        Shoes newShoes = null;
+                        Shoes shoe = new Shoes(idAlmacen, "", idTalla, "", idColor, "", "");
+                        if(idAlmacen > -1 && idTalla > -1 && idColor > -1)
+                            newShoes = shoes.findShoes(listShoes, shoe);
+                        if(newShoes == null)
+                            newShoes = shoes;
+
+                        reloadColor(newShoes, textCode);
                         //textCode.setText(codebar);
                         Log.i("Color", "" + v.getId() +"-"+ v.getTag());
                         //enabledButtons(listShoes,"","",color.replace("Color_",""));
@@ -746,9 +767,9 @@ public class PrincipalActivity extends AppCompatActivity {
     }
 
 
-    public void enabledButtons(List<Shoes> listShoes, String TagSucursal, String TagTalla, String TagColor){
-        Log.i("Sucursal", "" + TagSucursal);
-        Log.i("Talla", "" + TagTalla);
+    public void enabledButtons(List<Shoes> listShoes, Integer idSucursal, Integer idTalla, Integer idColor){
+        Log.i("Sucursal", "" + idSucursal);
+        Log.i("Talla", "" + idTalla);
         LinearLayout ls = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Sucursal);
         LinearLayout lt = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Talla);
         LinearLayout lc = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Color);
@@ -756,10 +777,10 @@ public class PrincipalActivity extends AppCompatActivity {
         ArrayList<Integer> listS = new ArrayList<Integer>();
         for (int i = 0; i < listShoes.size(); i++) {
             Shoes shoes = listShoes.get(i);
-            String tagAlmacen = "Sucursal_" + shoes.getIdAlmacen();
+            //String tagAlmacen = "Sucursal_" + shoes.getIdAlmacen();
             if (!listS.contains(shoes.getIdAlmacen())) {
                 listS.add(shoes.getIdAlmacen());
-                Button button = (Button) ls.findViewWithTag(tagAlmacen);
+                Button button = (Button) ls.findViewById(bitSuc + shoes.getIdAlmacen()); //ls.findViewWithTag(tagAlmacen);
                 Log.i("sucursal disabled", "" + button.getTag());
                 //button.setBackgroundDrawable(getResources().getDrawable(R.color.grey));
                 //button.setBackgroundColor(Color.LTGRAY);
@@ -770,8 +791,8 @@ public class PrincipalActivity extends AppCompatActivity {
             }
         }
 
-        if(TagSucursal.length() > 0){
-            Button b = (Button) ls.findViewWithTag(TagSucursal);
+        if(idSucursal > -1){
+            Button b = (Button) ls.findViewById(bitSuc + idSucursal); //ls.findViewWithTag(TagSucursal);
             //b.setBackgroundColor(Color.rgb(81,209,246));
 
             b.setBackground(button_Active());
@@ -780,10 +801,10 @@ public class PrincipalActivity extends AppCompatActivity {
             ArrayList<Integer> listT = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagTalla = "Talla_" + shoes.getIdTalla();
+                //String tagTalla = "Talla_" + shoes.getIdTalla();
                 if (!listT.contains(shoes.getIdTalla())) {
                     listT.add(shoes.getIdTalla());
-                    Button button = (Button) lt.findViewWithTag(tagTalla);
+                    Button button = (Button) lt.findViewById(bitTam + shoes.getIdTalla()); //lt.findViewWithTag(tagTalla);
                     Log.i("talla disabled", "" + button.getTag());
 
                     button.setBackground(button_Normal());
@@ -794,10 +815,10 @@ public class PrincipalActivity extends AppCompatActivity {
             listT = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagTalla = "Talla_" + shoes.getIdTalla();
-                if (("Sucursal_" + shoes.getIdAlmacen()).equals(TagSucursal) && !listT.contains(shoes.getIdTalla())) {
+                //String tagTalla = "Talla_" + shoes.getIdTalla();
+                if ((shoes.getIdAlmacen() == idSucursal) && !listT.contains(shoes.getIdTalla())) {
                     listT.add(shoes.getIdTalla());
-                    Button button = (Button) lt.findViewWithTag(tagTalla);
+                    Button button = (Button) lt.findViewById(bitTam + shoes.getIdTalla()); //lt.findViewWithTag(tagTalla);
                     Log.i("talla enabled", "" + button.getTag());
                     button.setBackground(button_Normal());
                     button.setEnabled(true);
@@ -807,10 +828,10 @@ public class PrincipalActivity extends AppCompatActivity {
             ArrayList<Integer> listC = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagColor = "Color_" + shoes.getIdColor();
+                //String tagColor = "Color_" + shoes.getIdColor();
                 if (!listC.contains(shoes.getIdColor())) {
                     listC.add(shoes.getIdColor());
-                    Button button = (Button) lc.findViewWithTag(tagColor);
+                    Button button = (Button) lc.findViewById(bitCol + shoes.getIdColor());
                     Log.i("color disabled", "" + button.getTag());
                     //button.setEnabled(false);
                     //button.setTextColor(button.getBackgroundTintList());
@@ -820,10 +841,10 @@ public class PrincipalActivity extends AppCompatActivity {
             listC = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagColor = "Color_" + shoes.getIdColor();
-                if (("Sucursal_" + shoes.getIdAlmacen()).equals(TagSucursal) && !listC.contains(shoes.getIdColor())) {
+                //String tagColor = "Color_" + shoes.getIdColor();
+                if ((shoes.getIdAlmacen() == idSucursal) && !listC.contains(shoes.getIdColor())) {
                     listC.add(shoes.getIdColor());
-                    Button button = (Button) lc.findViewWithTag(tagColor);
+                    Button button = (Button) lc.findViewById(bitCol + shoes.getIdColor());
                     button.setHint(shoes.getLotCodigoBarras());
                     Log.i("color enabled", "" + button.getTag());
                     //button.setEnabled(true);
@@ -834,15 +855,15 @@ public class PrincipalActivity extends AppCompatActivity {
 
 
 
-        if(TagTalla.length() > 0){
+        if(idTalla > -1){
 
             ArrayList<Integer> listT = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagTalla = "Talla_" + shoes.getIdTalla();
+                //String tagTalla = "Talla_" + shoes.getIdTalla();
                 if (!listT.contains(shoes.getIdTalla())) {
                     listT.add(shoes.getIdTalla());
-                    Button button = (Button) lt.findViewWithTag(tagTalla);
+                    Button button = (Button) lt.findViewById(bitTam + shoes.getIdTalla()); //lt.findViewWithTag(tagTalla);
                     Log.i("talla disabled", "" + button.getTag());
                     //button.setBackgroundDrawable(getResources().getDrawable(R.color.grey));
                     button.setBackground(button_Normal());
@@ -850,17 +871,17 @@ public class PrincipalActivity extends AppCompatActivity {
                 }
             }
 
-            Button b = (Button) lt.findViewWithTag(TagTalla);
+            Button b = (Button) lt.findViewById(bitTam + idTalla); //lt.findViewWithTag(TagTalla);
             b.setBackground(button_Active());
             //b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#888888")));
 
             ArrayList<Integer> listC = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagColor = "Color_" + shoes.getIdColor();
+                //String tagColor = "Color_" + shoes.getIdColor();
                 if (!listC.contains(shoes.getIdColor())) {
                     listC.add(shoes.getIdColor());
-                    Button button = (Button) lc.findViewWithTag(tagColor);
+                    Button button = (Button) lc.findViewById(bitCol + shoes.getIdColor());
                     Log.i("color disabled", "" + button.getTag());
                     //button.setEnabled(false);
                     //button.setTextColor(button.getBackgroundTintList());
@@ -870,10 +891,10 @@ public class PrincipalActivity extends AppCompatActivity {
             listC = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
-                String tagColor = "Color_" + shoes.getIdColor();
-                if (("Sucursal_" + shoes.getIdAlmacen()).equals(TagSucursal) && ("Talla_" + shoes.getIdTalla()).equals(TagTalla)  && !listC.contains(shoes.getIdColor())) {
+                //String tagColor = "Color_" + shoes.getIdColor();
+                if ((shoes.getIdAlmacen() == idSucursal) && (shoes.getIdTalla() == idTalla)  && !listC.contains(shoes.getIdColor())) {
                     listC.add(shoes.getIdColor());
-                    Button button = (Button) lc.findViewWithTag(tagColor);
+                    Button button = (Button) lc.findViewById(bitCol + shoes.getIdColor());
                     button.setHint(shoes.getLotCodigoBarras());
                     Log.i("color enabled", "" + button.getTag());
                     //button.setEnabled(true);
@@ -894,7 +915,7 @@ public class PrincipalActivity extends AppCompatActivity {
     private void initialiseDetectorsAndSources() {
 
         //Toast.makeText(getApplicationContext(), "Barcode scanner started", Toast.LENGTH_SHORT).show();
-        surfaceView.setVisibility(View.VISIBLE);
+
 
         barcodeDetector = new BarcodeDetector.Builder(this)
                 .setBarcodeFormats(Barcode.ALL_FORMATS)
@@ -964,7 +985,7 @@ public class PrincipalActivity extends AppCompatActivity {
                         @Override
                         public void run() {
 
-                            if (barcodes.valueAt(0).email != null) {
+                            /*if (barcodes.valueAt(0).email != null) {
                                 //barcodeText.removeCallbacks(null);
                                 barcodeData = barcodes.valueAt(0).email.address;
                                 //barcodeText.setText(barcodeData);
@@ -973,8 +994,10 @@ public class PrincipalActivity extends AppCompatActivity {
                                 textCodeBar.setText("");
                                 textCodeBar.setText(barcodeData);
                                 surfaceView.setVisibility(View.GONE);
-                            } else {
-
+                                imageView.setVisibility(View.VISIBLE);
+                                textViewDetails.setVisibility(View.VISIBLE);
+                            } else {*/
+                            if (barcodes.valueAt(0).displayValue != null) {
                                 barcodeData = barcodes.valueAt(0).displayValue;
                                 //barcodeText.setText(barcodeData);
                                 toneGen1.startTone(ToneGenerator.TONE_CDMA_PIP, 150);
@@ -982,6 +1005,9 @@ public class PrincipalActivity extends AppCompatActivity {
                                 textCodeBar.setText("");
                                 textCodeBar.setText(barcodeData);
                                 surfaceView.setVisibility(View.GONE);
+                                imageView.setVisibility(View.VISIBLE);
+                                textViewDetails.setVisibility(View.VISIBLE);
+                                switchCamera = true;
                             }
                         }
                     });
@@ -1003,5 +1029,124 @@ public class PrincipalActivity extends AppCompatActivity {
         super.onResume();
         //initialiseDetectorsAndSources();
     }
+
+
+    private void createFile(Context context) {
+        int permissionCheck = ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            Log.i("Mensaje", "No se tiene permiso para leer.");
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 225);
+
+        } else {
+            Log.i("Mensaje", "Se tiene permiso para leer y escribir!");
+
+            String direccion = context.getExternalFilesDir(null) + "/config.txt";
+            File fich = new File(direccion);
+
+            FileOutputStream fileOutputStream = null;
+            if(!fich.exists()){
+                try {
+                    fich.createNewFile();
+                } catch (IOException e) {
+                    Log.e(TAG, "Error statusFile " + e.getMessage());
+                }
+            }
+        }
+
+    }
+
+    public static String readFile(Context context){
+        String direccion = context.getExternalFilesDir(null) + "/config.txt";
+        StringBuilder text = new StringBuilder();
+
+        try {
+            File file = new File(direccion);
+            FileInputStream fis = new FileInputStream(file);
+            BufferedReader br = new BufferedReader(new InputStreamReader(fis));
+
+            String line;
+            while ((line = br.readLine()) != null) {
+                text.append(line);
+                text.append('\n');
+            }
+
+            br.close();
+        } catch (IOException e) {
+            Log.e(TAG, "Error readFile " + e.getMessage());
+        }
+
+        return text.toString();
+    }
+
+    public static String writeFile(Context context, Shoes f){
+
+        String direccion = context.getExternalFilesDir(null).toString();
+        String fileName = "config.txt";
+        String linea = f.getIdAlmacen()+"";
+        try {
+            FileWriter out = new FileWriter(new File(direccion, fileName));
+            out.write(linea);
+            out.close();
+        } catch (IOException e) {
+            Log.e(TAG, "Error writeFile " + e.getMessage());
+        }
+        return linea;
+    }
+
+
+    /*@Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        //LinearLayout lo = (LinearLayout) findViewById(R.id.linear_Layout_One);
+        LinearLayout lp = (LinearLayout) findViewById(R.id.linear_Layout_Principal);
+        LinearLayout ld = (LinearLayout) findViewById(R.id.linear_Layout_Details);
+        LinearLayout la = (LinearLayout) findViewById(R.id.linear_Layout_Available);
+            // Checks the orientation of the screen
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            //change your desigen by java code
+            Log.i("ORIENTATION_LANDSCAPE", "LANDSCAPE" );
+            this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
+            Toast.makeText(PrincipalActivity.this, "ORIENTATION_LANDSCAPE" ,Toast.LENGTH_SHORT).show();
+
+            lp.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams paramsd = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT, 0.2f);
+            paramsd.gravity = Gravity.LEFT;
+            paramsd.weight = 0.2f;
+            ld.setLayoutParams(paramsd);
+            ld.requestLayout();
+            LinearLayout.LayoutParams paramsa = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT, 0.8f);
+            paramsa.gravity = Gravity.RIGHT;
+            paramsa.weight = 0.8f;
+            la.setLayoutParams(paramsa);
+            la.requestLayout();
+            lp.requestLayout();
+            //lo.addView(la);
+            //lo.addView(lp);
+        } else if (newConfig.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            //change your desigen by java code
+            Log.i("ORIENTATION_PORTRAIT", "PORTRAIT" );
+            this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+            Toast.makeText(PrincipalActivity.this, "ORIENTATION_PORTRAIT" ,Toast.LENGTH_SHORT).show();
+
+            lp.setOrientation(LinearLayout.VERTICAL);
+            lp.setWeightSum(2f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+            params.gravity = Gravity.CENTER;
+            params.weight=1f;
+            ld.setLayoutParams(params);
+            la.setLayoutParams(params);
+
+            lp.requestLayout();
+            ld.requestLayout();
+            la.requestLayout();
+            //lo.addView(lp);
+            //lo.addView(ld);
+            //lo.addView(la);
+        }
+    }*/
 
 }

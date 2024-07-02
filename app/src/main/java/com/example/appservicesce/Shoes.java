@@ -1,5 +1,7 @@
 package com.example.appservicesce;
 
+import java.util.List;
+
 public class Shoes {
     protected int idAlmacen;
     protected String Almacen;
@@ -74,5 +76,14 @@ public class Shoes {
 
     public void setLotCodigoBarras(String lotCodigoBarras) {
         this.lotCodigoBarras = lotCodigoBarras;
+    }
+
+    public Shoes findShoes(List<Shoes> listShoes, Shoes shoe){
+        for (Shoes shoes : listShoes) {
+            if (shoes.getIdAlmacen() == shoe.getIdAlmacen() && shoes.getIdTalla() == shoe.getIdTalla() && shoes.getIdColor() == shoe.getIdColor()) {
+                return shoes;
+            }
+        }
+        return null;
     }
 }

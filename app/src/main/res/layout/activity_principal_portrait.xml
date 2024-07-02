@@ -57,7 +57,7 @@
                     android:layout_marginEnd="10dp"
                     android:layout_gravity="center"
                     android:orientation="vertical"
-                    android:layout_weight="0.5"
+                    android:layout_weight="0.7"
                     android:weightSum="1">
 
                     <LinearLayout
@@ -116,7 +116,7 @@
 
 
                     <LinearLayout
-
+                        android:id="@+id/textViewDetails"
                         android:layout_width="match_parent"
                         android:layout_height="0dp"
                         android:layout_weight="0.4"
@@ -151,7 +151,7 @@
                     android:layout_marginStart="10dp"
                     android:layout_marginEnd="10dp"
                     android:layout_gravity="center"
-                    android:layout_weight="0.5"
+                    android:layout_weight="0.3"
                     android:weightSum="1">
 
                     <TextView

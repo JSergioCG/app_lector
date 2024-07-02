@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="tag_id" type="id" />
+    <item name="tag_codebar" type="id" />
+    <item name="tag_almacen" type="id" />
+    <item name="tag_talla" type="id" />
+    <item name="tag_color" type="id" />
+</resources>
