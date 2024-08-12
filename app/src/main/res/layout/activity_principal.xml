@@ -60,6 +60,14 @@
                     android:layout_weight="0.2"
                     android:weightSum="1">
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="CONSULTÁ EL PRECIO AQUÍ:"
+                        android:textColor="#000000"
+                        android:fontFamily="@font/made_tommy_light"
+                        />
+
                     <EditText
                         android:id="@+id/editTextCode"
                         android:layout_width="fill_parent"

@@ -1,5 +1,6 @@
 package com.example.appservicesce;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -42,10 +43,13 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -114,8 +118,8 @@ public class PrincipalActivity extends AppCompatActivity {
     private TextView barcodeText;
     private String barcodeData;
 
-    //private String server_url = "http://192.168.0.101/mvcapicontroller/Api/Product";
-    private String server_url = "http://192.168.1.219/mvcapicontroller/Api/Product";
+    private String server_url = "https://colibri2.com/mvcapicontroller/api/articulo";
+    //private String server_url = "http://192.168.0.101/mvcapicontroller/api/articulo";
 
     private int i = 0;
     private String server_url_product = "";
@@ -129,6 +133,7 @@ public class PrincipalActivity extends AppCompatActivity {
 
     final String[] color = { "Amarillo", "Azul", "Beige", "Marron", "Estampado", "Gris", "Metalico", "Multicolor", "Naranja", "Negro", "Rojo", "Rosa", "Verde", "Violeta", "Plateado", "Dorado", "Blanco", "Animale Print", "Transparente", "Bronze" };
     final String[] hexadecimal = { "#FFD300", "#1630BE", "#D7D7A8", "#804000", "#ESTAMPADO", "#9B9B9B","#535654", "#MULTICOLOR", "#FFA500", "#000000", "#FF0000", "#FFC0CB", "#00913F", "#4C2882", "#E3E4E5", "#CFB53B", "#FFFFFF",  "#ANIMAL", "#FFFFFF", "#BF8970"  };
+    final String[] sucursales = { "Central" , "America", "Bolivar", "La Paz", "Cochabamba", "velasco", "MegaCenter", "Transitorio", "Fallas", "outlet", "San Martin", "Distribuidor", "Almacen Saldos", "Comercial", "Ventura Mall", "Ventura Arezzo", "Las Brisas", "Insumos", "Patio Design", "Patio Arezzo", "Almacen Reserva", "PP", "Web", "central_x_Mayor", "", "Redes"  };
 
     public Integer textNormal = 10;
 
@@ -138,6 +143,7 @@ public class PrincipalActivity extends AppCompatActivity {
     public Integer idAlmacen = -1;
     public Integer idTalla = -1;
     public Integer idColor = -1;
+    public static Integer confAlmacen = -1;
 
     public static Integer bitSuc = 8311799;
     public static Integer bitTam = 8497109;
@@ -148,6 +154,10 @@ public class PrincipalActivity extends AppCompatActivity {
     Button buttonCamera;
     Boolean switchCamera = true;
     LinearLayout textViewDetails;
+
+    ListView simpleListView;
+    TextView textViewSucursal;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -200,13 +210,24 @@ public class PrincipalActivity extends AppCompatActivity {
         createFile(this);
         String data = readFile(this);
         //Log.i("DATA", data);
+        Sucursal s = new Sucursal(0, "Central");
         if(data.length() == 0) {
-            Shoes s = new Shoes(0, "Central", -1, "", -1, "", "");
+            s = new Sucursal(0, "Central");
             data = writeFile(this,s);
             //Log.i("DATA", data);
+
+        }else{
+            //s = ActivityConfig.sucursals.get(10);
+            int idSuc = Integer.parseInt(data.trim());
+            s = new Sucursal(idSuc, sucursales[idSuc]);
         }
         //Log.i("DATA",""+ Integer.parseInt(data.trim()));
-        this.idAlmacen = Integer.parseInt(data.trim());
+        confAlmacen = Integer.parseInt(data.trim());
+        this.idAlmacen = confAlmacen;
+
+        textViewSucursal = (TextView) findViewById(R.id.textViewSucursal);
+        textViewSucursal.setText(textViewSucursal.getText()+" "+s.getName().toUpperCase());
+
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -244,10 +265,15 @@ public class PrincipalActivity extends AppCompatActivity {
                     requestQueue = new RequestQueue(cache,network);
                     requestQueue.start();
 
-                    long uniqueNum = UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
+                    if(idColor == -1){
+                        idAlmacen = confAlmacen;
+                        idTalla = -1;
+                    }
+
+                    long uniqueNum =  (bitSuc+idAlmacen)+(bitTam+idTalla)+(bitCol+idColor); //UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
 
                     server_url_product = server_url + "?id=" + uniqueNum + "&code_bar=" + codebar + "&idAlm=" + idAlmacen + "&idTam="+ idTalla + "&idCol=" + idColor;
-                    Log.d(TAG, server_url_product);
+                    Log.i("URL", server_url_product);
                     StringRequest stringRequest = new StringRequest(Request.Method.GET, server_url_product, new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
@@ -262,7 +288,7 @@ public class PrincipalActivity extends AppCompatActivity {
 
                                 Log.d("My App", obj.toString());
 
-                                Log.d("afoImagen value ", obj.getString("afoImagen"));
+                                //Log.d("afoImagen value ", obj.getString("afoImagen"));
 
                                 /*viewPager.setCurrentItem(0, true);
                                 sectionsPagerAdapter.getItem(0).home_title.setText(app.getCurrentPodcast().getTitle());*/
@@ -280,28 +306,47 @@ public class PrincipalActivity extends AppCompatActivity {
                                 }
 
                                 String caaPrecio = obj.getString("caaPrecio");
+                                String caaPrecioOferta = obj.getString("caaPrecioOferta");
+                                float precio = 0;
                                 float precioOferta = 0;
                                 float tipoCambio = Float.parseFloat(obj.getString("tcavalor"));
 
                                 if(!TextUtils.isEmpty(caaPrecio) && !caaPrecio.equals("null"))
-                                    precioOferta = Float.parseFloat(caaPrecio);
+                                    precio = Float.parseFloat(caaPrecio);
+                                if(!TextUtils.isEmpty(caaPrecioOferta) && !caaPrecioOferta.equals("null"))
+                                    precioOferta = Float.parseFloat(caaPrecioOferta);
+
+                                int catId = Integer.parseInt(obj.getString("catId"));
+                                int camIdExcep = Integer.parseInt(obj.getString("camIdExcep"));
 
                                 String basedatos = obj.getString("basedatos");
                                 String database = "";
-                                if(basedatos.equals("LOCAL"))
-                                    database = "<font size='50' color=#0173B7><b>"+String.format("%.0f", precioOferta*tipoCambio)+"</b> Bs.</font>";
-                                else if(basedatos.equals("PRODUCCION"))
-                                    database = "<font size='50' color=#FF0000><b>"+String.format("%.0f", precioOferta*tipoCambio)+"</b> Bs.</font>";
-
+                                if(basedatos.equals("LOCAL")) {
+                                    database = "<font size='50' color=#FF0000><b>" + String.format("%.0f", precio * tipoCambio) + "</b> Bs.</font><br>";
+                                }else if(basedatos.equals("PRODUCCION")) {
+                                    if (precioOferta > 0) {
+                                        database = "<font size='50'><b><strike>" + String.format("%.0f", precio * tipoCambio) + "</b> Bs.</strike> <b>" + String.format("%.0f", precioOferta * tipoCambio) + "</b> Bs.</font><br>";
+                                    }else /*if (catId == 1 && camIdExcep == 0) {
+                                        float precio100 = precio * tipoCambio;
+                                        float porc30 = ((precio100*70)/100);
+                                        float porc40 = ((precio100*60)/100);
+                                        float porc50 = ((precio100*50)/100);
+                                        database = "<b><strike>" + String.format("%.0f", precio * tipoCambio) + " Bs.</strike></b> <br><b><font color=#444444>(-30%):</font> <font color=#FF0000>" + String.format("%.0f", porc30) + " Bs.</font></b> <br><b><font color=#444444>(-40%):</font> <font color=#FF0000>" + String.format("%.0f", porc40) + " Bs.</font></b> <br><b><font color=#444444>(-50%):</font> <font color=#FF0000>" + String.format("%.0f", porc50) + " Bs.</font></b></font><br>";
+                                    }else*/
+                                    {
+                                        database = "<font size='50'><b>" + String.format("%.0f", precio * tipoCambio) + "</b> Bs.</font><br>";
+                                    }
+                                }
                                 String text_1 =
                                         "<table><tbody>" +
-                                        "<tr><td><b><font color=#444444>ALMACEN:</font></b> <font color=#0173B7>"+obj.getString("almNombre").toUpperCase()+"</font></td></tr><br>" +
+                                        "<tr><td><b><font color=#444444>PRECIO:</b> <b>"+database+"</b></font></td></tr><br>" +
+                                        "<tr><td><b><font color=#444444>ALMACEN:</font></b> "+obj.getString("almNombre").toUpperCase()+"</td></tr><br>" +
                                         "<tr><td><b><font color=#444444>PROOVEEDOR:</font></b> "+obj.getString("pveNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>CATEGORIA:</font></b> "+obj.getString("catNombre").toUpperCase()+"</td></tr><br>" +
+                                        //"<tr><td><b><font color=#444444>CATEGORIA:</font></b> <font color=#0173B7>"+obj.getString("catNombre").toUpperCase()+"</font></td></tr><br>" +
                                         "<tr><td><b><font color=#444444>MATERIAL F.:</font></b> "+obj.getString("mafNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>COLOR F.:</font></b> "+obj.getString("cofNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>PRECIO:</font></b> "+database+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>IMAGEN:</font></b> <a target='_blank' "+href+" >"+image+"</a></td></tr><br>"+
+                                        //"<tr><td><b><font color=#444444>COLOR F.:</font></b> "+obj.getString("cofNombre").toUpperCase()+"</td></tr><br>" +
+
+
                                         //"<tr><td><strong>Codigo:</strong> <a target='_blank' "+href+" >"+obj.getString("lotCodigoBarras")+"</a></td></tr><br>"+
                                         //"<tr><td><strong>Shopify:</strong> <a target='_blank' href='"+obj.getString("image_src")+"'>ver mas...</a></td></tr><br>"+
                                         "</tbody></table>";
@@ -317,13 +362,14 @@ public class PrincipalActivity extends AppCompatActivity {
 
 
                                 String text_2 = "<table><tbody>" +
+                                        "<tr><td><b><font color=#444444>TALLA:</font></b> "+obj.getString("tamNombre").toUpperCase()+"</td></tr><br>" +
                                         "<tr><td><b><font color=#444444>MODELO:</font></b> "+obj.getString("modNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>TALLA:</font></b> <font color=#0173B7>"+obj.getString("tamNombre").toUpperCase()+"</font></td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>SUBCATEGORIA:</font></b> "+obj.getString("subNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>MATERIAL:</font></b> "+obj.getString("matNombre").toUpperCase()+"</td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>COLOR:</font></b> <font color=#0173B7>"+obj.getString("colNombre").toUpperCase()+"</font></td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>STOCK:</font></b> "+obj.getString("Stock")+" <b><font color=#444444>VENDIDOS:</font></b> <font color=#FF0000>"+obj.getString("cantVenta")+"</font></td></tr><br>" +
-                                        "<tr><td><b><font color=#444444>REFERENCIA:</font></b> "+obj.getString("artReferencia")+"</td></tr><br>" +
+                                        //"<tr><td><b><font color=#444444>SUBCATEGORIA:</font></b> <font color=#0173B7>"+obj.getString("subNombre").toUpperCase()+"</font></td></tr><br>" +
+                                        //"<tr><td><b><font color=#444444>MATERIAL:</font></b> <font color=#0173B7>"+obj.getString("matNombre").toUpperCase()+"</font></td></tr><br>" +
+                                        "<tr><td><b><font color=#444444>COLOR:</font></b> "+obj.getString("colNombre").toUpperCase()+"</td></tr><br>" +
+                                        //"<tr><td><b><font color=#444444>STOCK:</font></b> "+obj.getString("stock")+" <b><font color=#444444>VENDIDOS:</font></b> <font color=#FF0000>"+obj.getString("cantVenta")+"</font></td></tr><br>" +
+                                        "<tr><td><b><font color=#444444>IMAGEN:</font></b> <a target='_blank' "+href+" >"+image+"</a></td></tr><br>"+
+                                        "<tr><td><b><font color=#444444>REFERENCIA:</font></b> "+obj.getString("artNombre")+"</td></tr><br>" +
                                         "</tbody></table>";
                                         //"<h1><strong>Disponibles</strong></h1>";
                                 //"<div><strong>Temporada:</strong> "+obj.getString("temNombre")+"</div>"+
@@ -366,7 +412,6 @@ public class PrincipalActivity extends AppCompatActivity {
 
 
 
-                                /**/
                                 imageView.setImageResource(R.drawable.ic_menu_camera);
                                 //new ImageLoadTask("https://colibri2.com/sigece/16.gif", imageView).execute();
                                 // Adding the gif here using glide library
@@ -380,7 +425,7 @@ public class PrincipalActivity extends AppCompatActivity {
                                                 return;
                                             new ImageLoadTask(url_image, imageView).execute();
                                         }
-                                    },0);
+                                    },100);
 
                                     //Log.i("SRC",url_image);
                                 }else{
@@ -394,10 +439,18 @@ public class PrincipalActivity extends AppCompatActivity {
 
                                 deleteButtons();
                                 createButtons(listShoes, textCodeBar);
-                                //createButtonsTallas(listShoes);
+
+                                //HABILITAR SI SOLO QUIEREN VER EL DE SU SUCURSAL
+                                int almId = Integer.parseInt(obj.getString("almId"));
+                                LinearLayout ls = (LinearLayout) findViewById(R.id.linear_Layout_Buttons_Sucursal);
+                                Button button = (Button) ls.findViewById(bitSuc + almId);
+                                if(button != null)
+                                    button.callOnClick();
+                                else
+                                    Log.i("SUCURSAL", "Button not exist" );
 
                             } catch (Throwable tx) {
-                                Log.e("My App", "Could not parse malformed JSON: \"" + json + "\"");
+                                Log.e("My App", "Could not parse malformed JSON: " + json );
                             }
 
                             requestQueue.stop();
@@ -421,22 +474,61 @@ public class PrincipalActivity extends AppCompatActivity {
             }
         });
 
-        /*TextView txt= (TextView) findViewById(R.id.textViewDetails1); //txt is object of TextView
+        TextView txt= (TextView) findViewById(R.id.textViewSucursal); //txt is object of TextView
         //txt.setMovementMethod(LinkMovementMethod.getInstance());
         txt.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                Intent browserIntent = new Intent(Intent.ACTION_VIEW);
+                /*Intent browserIntent = new Intent(Intent.ACTION_VIEW);
                 String url_tag = v.getTag().toString();
                 browserIntent.setData(Uri.parse(url_tag));
                 startActivity(browserIntent);
-                //disabledQuerty(textCodeBar);
+                //disabledQuerty(textCodeBar);*/
+                Intent openSucursal = new Intent(getApplicationContext(),ActivityConfig.class);
+                startActivity(openSucursal);
+
+                finish();
             }
-        });*/
+        });
 
         //if(isLandscape(this))
             //textCodeBar.setText("294841i24r611");
-        textCodeBar.setText("294837i24r611");
 
+
+        /*listViewConfig=(ListView)findViewById(R.id.listViewConfig);
+        textViewConfig=(TextView)findViewById(R.id.itemTextView);
+        listItemConfig = getResources().getStringArray(R.array.array_sucursal);
+        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                R.layout.item_view, R.id.itemTextView,  listItemConfig);
+        listViewConfig.setAdapter(adapter);*/
+
+        // array objects
+        /*String courseList[] = {"C-Programming", "Data Structure", "Database", "Python",
+                "Java", "Operating System", "Compiler Design", "Android Development"};
+
+        simpleListView = (ListView) findViewById(R.id.simpleListView);
+
+        ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this,
+                R.layout.item_view, 0, courseList);
+        //simpleListView.setAdapter(arrayAdapter);
+
+        simpleListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                // TODO Auto-generated method stub
+                String value=arrayAdapter.getItem(position);
+                Toast.makeText(getApplicationContext(),value,Toast.LENGTH_SHORT).show();
+
+            }
+        });*/
+
+        textCodeBar.setText("294672I24R611");
+        //textCodeBar.setText("183940I24R607");
+
+    }
+
+    public void updateSucursal(String name){
+        textViewSucursal = (TextView) findViewById(R.id.textViewSucursal);
+        textViewSucursal.setText(textViewSucursal.getText()+" "+name.toUpperCase());
     }
 
     public void reloadColor(Shoes shoes, EditText textCode){
@@ -452,8 +544,8 @@ public class PrincipalActivity extends AppCompatActivity {
         buttonTalla.setBackground(button_Active());
         textCode.setText(shoes.getLotCodigoBarras());
 
-        String data = readFile(this);
-        this.idAlmacen = Integer.parseInt(data.trim());
+        //String data = readFile(this);
+        this.idAlmacen = this.confAlmacen; //Integer.parseInt(data.trim());
         this.idTalla = -1;
         this.idColor = -1;
     }
@@ -471,6 +563,14 @@ public class PrincipalActivity extends AppCompatActivity {
         gd1.setColor(0xFF888888); // Changes this drawbale to use a single color instead of a gradient
         gd1.setCornerRadius(10);
         gd1.setStroke(1, 0xFF888888);
+        return gd1;
+    }
+
+    public GradientDrawable button_DisActive(){
+        GradientDrawable gd1 = new GradientDrawable();
+        gd1.setColor(0xFFEEEEEE); // Changes this drawbale to use a single color instead of a gradient
+        gd1.setCornerRadius(10);
+        gd1.setStroke(0, 0xFFFFFFFF);
         return gd1;
     }
 
@@ -590,7 +690,7 @@ public class PrincipalActivity extends AppCompatActivity {
                 buttonT.setText(shoes.getTalla());
                 //buttonT.setWidth(30);
                 //buttonT.setHeight(20);
-                buttonT.setTextSize(textNormal);
+                buttonT.setTextSize(textInter);
                 buttonT.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
                 buttonT.setPadding(10,10,10,10);
 
@@ -807,7 +907,7 @@ public class PrincipalActivity extends AppCompatActivity {
                     Button button = (Button) lt.findViewById(bitTam + shoes.getIdTalla()); //lt.findViewWithTag(tagTalla);
                     Log.i("talla disabled", "" + button.getTag());
 
-                    button.setBackground(button_Normal());
+                    button.setBackground(button_DisActive());
                     //button.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#CCCCCC")));
                     button.setEnabled(false);
                 }
@@ -857,7 +957,7 @@ public class PrincipalActivity extends AppCompatActivity {
 
         if(idTalla > -1){
 
-            ArrayList<Integer> listT = new ArrayList<Integer>();
+            /*ArrayList<Integer> listT = new ArrayList<Integer>();
             for (int i = 0; i < listShoes.size(); i++) {
                 Shoes shoes = listShoes.get(i);
                 //String tagTalla = "Talla_" + shoes.getIdTalla();
@@ -868,11 +968,13 @@ public class PrincipalActivity extends AppCompatActivity {
                     //button.setBackgroundDrawable(getResources().getDrawable(R.color.grey));
                     button.setBackground(button_Normal());
                     //button.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#CCCCCC")));
+                    //button.setEnabled(false);
                 }
-            }
+            }*/
 
             Button b = (Button) lt.findViewById(bitTam + idTalla); //lt.findViewWithTag(TagTalla);
             b.setBackground(button_Active());
+            b.setEnabled(true);
             //b.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#888888")));
 
             ArrayList<Integer> listC = new ArrayList<Integer>();
@@ -930,7 +1032,7 @@ public class PrincipalActivity extends AppCompatActivity {
             @Override
             public void surfaceCreated(SurfaceHolder holder) {
                 try {
-                    if (ActivityCompat.checkSelfPermission(PrincipalActivity.this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    if (ActivityCompat.checkSelfPermission(PrincipalActivity.this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                         cameraSource.start(surfaceView.getHolder());
 
                         /*Camera mCam = Camera.open();
@@ -947,7 +1049,7 @@ public class PrincipalActivity extends AppCompatActivity {
 
                     } else {
                         ActivityCompat.requestPermissions(PrincipalActivity.this, new
-                                String[]{android.Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+                                String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
                     }
 
                 } catch (IOException e) {
@@ -1033,10 +1135,10 @@ public class PrincipalActivity extends AppCompatActivity {
 
     private void createFile(Context context) {
         int permissionCheck = ContextCompat.checkSelfPermission(
-                this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
             Log.i("Mensaje", "No se tiene permiso para leer.");
-            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 225);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 225);
 
         } else {
             Log.i("Mensaje", "Se tiene permiso para leer y escribir!");
@@ -1068,7 +1170,7 @@ public class PrincipalActivity extends AppCompatActivity {
             String line;
             while ((line = br.readLine()) != null) {
                 text.append(line);
-                text.append('\n');
+                //text.append('\n');
             }
 
             br.close();
@@ -1079,11 +1181,11 @@ public class PrincipalActivity extends AppCompatActivity {
         return text.toString();
     }
 
-    public static String writeFile(Context context, Shoes f){
+    public static String writeFile(Context context, Sucursal s){
 
         String direccion = context.getExternalFilesDir(null).toString();
         String fileName = "config.txt";
-        String linea = f.getIdAlmacen()+"";
+        String linea = s.getId()+"";
         try {
             FileWriter out = new FileWriter(new File(direccion, fileName));
             out.write(linea);
@@ -1091,6 +1193,11 @@ public class PrincipalActivity extends AppCompatActivity {
         } catch (IOException e) {
             Log.e(TAG, "Error writeFile " + e.getMessage());
         }
+        //TextView txt= (TextView) findViewById(R.id.textViewSucursal);
+        //textViewSucursal.setText("SUCURSAL: "+s.getName());
+        confAlmacen = s.getId();
+        //PrincipalActivity p = null;
+        //p.updateSucursal(s.getName());
         return linea;
     }
 
