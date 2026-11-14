@@ -118,7 +118,7 @@ public class PrincipalActivity extends AppCompatActivity {
     private TextView barcodeText;
     private String barcodeData;
 
-    private String server_url = "https://colibri2.com/mvcapicontroller/api/articulo";
+    private final String server_url = "http://45.194.52.165/mvcapicontroller/api/articulo";
     //private String server_url = "http://192.168.0.101/mvcapicontroller/api/articulo";
 
     private int i = 0;
@@ -273,7 +273,7 @@ public class PrincipalActivity extends AppCompatActivity {
                     long uniqueNum =  (bitSuc+idAlmacen)+(bitTam+idTalla)+(bitCol+idColor); //UUID.randomUUID().getMostSignificantBits() & Long.MAX_VALUE;
 
                     server_url_product = server_url + "?id=" + uniqueNum + "&code_bar=" + codebar + "&idAlm=" + idAlmacen + "&idTam="+ idTalla + "&idCol=" + idColor;
-                    Log.i("URL", server_url_product);
+                    Log.i("URL1", server_url_product);
                     StringRequest stringRequest = new StringRequest(Request.Method.GET, server_url_product, new Response.Listener<String>() {
                         @Override
                         public void onResponse(String response) {
@@ -450,6 +450,8 @@ public class PrincipalActivity extends AppCompatActivity {
                                     Log.i("SUCURSAL", "Button not exist" );
 
                             } catch (Throwable tx) {
+                                disabledQuerty(textCodeBar);
+                                Toast.makeText(getApplicationContext(),"Error de Conversión JSON" , Toast.LENGTH_LONG).show();
                                 Log.e("My App", "Could not parse malformed JSON: " + json );
                             }
 
@@ -459,6 +461,8 @@ public class PrincipalActivity extends AppCompatActivity {
                     }, new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
+                            disabledQuerty(textCodeBar);
+                            Toast.makeText(getApplicationContext(),"Error de Conexión 404" , Toast.LENGTH_LONG).show();
                             Log.i(TAG,"Error :" + error.toString());
                         }
                     });

@@ -53,7 +53,7 @@ public class MainActivityTabs extends AppCompatActivity {
 private ActivityMainTabsBinding binding;
 
     //private String server_url = "http://54.207.205.169/mvcapicontroller/Api/Product?id=1&code_bar=";
-    private String server_url = "http://192.168.0.101/mvcapicontroller/Api/Product?id=1&code_bar=";
+    private String server_url = "http://45.194.52.165/mvcapicontroller/Api/Product?id=1&code_bar=";
 
     //private String server_url = "http://192.168.0.101/colibri3/Objetos/Caja/Almacen/Transacciones/WSCompleteNombre.asmx";
     //private String server_url = "http://54.207.205.169/SIGECE/Objetos/Gerencial/Formularios/gefRecepcionVentaJTable.aspx/ObtenerFiltros";
